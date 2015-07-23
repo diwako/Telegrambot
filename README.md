@@ -38,4 +38,4 @@ This base is able to:
 
   The MIT License (MIT)
 
-Copyright (c) 2015 diwako
+Copyright &COPY; 2015 diwako
