@@ -24,6 +24,7 @@ This base is able to:
 
 	- get the command from userinput
 	- get the parameters from userinput
+	- get Type informations for Audio,Documents,Videos,Photos
 	- send Messages
 	- send Chat Actions
 	- send Documents
