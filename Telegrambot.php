@@ -31,6 +31,16 @@ class Telegrambot
 	**************************************************/
 	
 	/**
+	 * Returns the type of message that has been sent to the bot
+	 * @return string	Returns type
+	 */
+	public function getType()
+	{
+		$keys = array_keys($this->responseData["message"]);
+		return $keys[count($keys) - 1];
+	}
+	
+	/**
 	 * Returns the name of the Message sender
 	 * @return string	Returns the name of the User that just sent a message
 	 */
@@ -82,6 +92,115 @@ class Telegrambot
 	public function getText()
 	{
 		return $this->responseData['message']['text'];
+	}
+	
+	/**
+	 * Returns the Sticker id from the Message
+	 * @return string	Returns the Sticker id
+	 */
+	public function getStickerId()
+	{
+		return $this->responseData['message']['sticker']['file_id'];
+	}
+	
+	/**
+	 * Returns the Document id from the Message
+	 * @return string	Returns the Document id
+	 */
+	public function getDocumentId()
+	{
+		return $this->responseData['message']['document']['file_id'];
+	}
+	
+	/**
+	 * Returns the Name of the document
+	 * @return string	Returns name
+	 */
+	public function getDocumentName()
+	{
+		return $this->responseData['message']['document']['file_name'];
+	}
+	
+	/**
+	 * Returns the mime_type of the document
+	 * @return string	Returns mime_type
+	 */
+	public function getDocumentType()
+	{
+		return $this->responseData['message']['document']['mime_type'];
+	}
+	
+	/**
+	 * Returns the file_size of the document
+	 * @return string	Returns file_size
+	 */
+	public function getDocumentSize()
+	{
+		return $this->responseData['message']['document']['file_size'];
+	}
+	
+	/**
+	 * Returns the audio id from the Message
+	 * @return string	Returns the audio id
+	 */
+	public function getAudioId()
+	{
+		return $this->responseData['message']['audio']['file_id'];
+	}
+	
+	/**
+	 * Returns the audio duration from the Message
+	 * @return string	Returns the audio duration
+	 */
+	public function getAudioDuration()
+	{
+		return $this->responseData['message']['audio']['duration'];
+	}
+	
+	/**
+	 * Returns the audio mime_type id from the Message
+	 * @return string	Returns the audio mime_type
+	 */
+	public function getAudioType()
+	{
+		return $this->responseData['message']['audio']['mime_type'];
+	}
+	
+	/**
+	 * Returns the video id from the Message
+	 * @return string	Returns the video id
+	 */
+	public function getVideoId()
+	{
+		return $this->responseData['message']['video']['file_id'];
+	}
+	
+	/**
+	 * Returns the video duration from the Message
+	 * @return string	Returns the video duration
+	 */
+	public function getVideoDuration()
+	{
+		return $this->responseData['message']['video']['duration'];
+	}
+	
+	/**
+	 * Returns the video mime_type id from the Message
+	 * @return string	Returns the video mime_type
+	 */
+	public function getVideoType()
+	{
+		return $this->responseData['message']['video']['mime_type'];
+	}
+		
+	/**
+	 * Returns the  photo id from the Message
+	 * @return string	Returns the  photo id
+	 */
+	public function getPhotoId()
+	{
+		//there are 2 more photo ids for a small and middle one, however using those ids always redirects to the large one
+		return $this->responseData['message']['photo'][2][file_id];
 	}
 	
 	/**
@@ -156,12 +275,9 @@ class Telegrambot
 	 * @param array $reply_markup	Options for custom keyboards
 	 */
 	public function sendMessage($message, $isreply = false, $reply_markup = null)
-	{				
-		$postfields = ["text" => $message, "chat_id" => $this->getChatId(), "reply_markup" => json_encode($reply_markup)];
-		
-		if($isreply){
-			$postfields["reply_to_message_id"] = $this->getMessageId();
-		}
+	{
+		$postfields = $this->createPostfields($this->getChatId(),$isreply, $reply_markup);
+		$postfields["text"] = $message;
 		
 		$this->makeRequest("sendMessage", $postfields);
 	}
@@ -180,7 +296,8 @@ class Telegrambot
 	 */
 	public function sendChatAction($type = "typing")
 	{		
-		$postfields = ["chat_id" => $this->getChatId(), "action" => $type];
+		$postfields = $this->createPostfields($this->getChatId());
+		$postfields["action"] = $type;
 		
 		$this->makeRequest("sendChatAction", $postfields);
 	}
@@ -188,8 +305,10 @@ class Telegrambot
 	/**
 	 * Send a document to the chat
 	 * @param string $filestring	file that will up uploaded
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendDocument($filestring)
+	public function sendDocument($filestring, $isreply = false, $reply_markup = null)
 	{
 		$this->sendChatAction("upload_document");
 		
@@ -199,8 +318,14 @@ class Telegrambot
 		$online = $local[1];	//bool if file was not local
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
-		$postfields = ["chat_id" => $this->getChatId(),
-			"document" => new CurlFile($filestring, '')];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		
+		if(file_exists($filestring)){
+			$postfields["document"] = new CurlFile($filestring, '');
+		}
+		else{
+			$postfields["document"] = $filestring;
+		}
 
 		$this->makeRequest("sendDocument", $postfields, $headers);
 		
@@ -212,8 +337,10 @@ class Telegrambot
 	/**
 	 * Send a photo to the chat
 	 * @param string $filestring	photo that will up uploaded
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendPhoto($filestring)
+	public function sendPhoto($filestring, $isreply = false, $reply_markup = null)
 	{
 		$this->sendChatAction("upload_photo");
 		
@@ -223,8 +350,14 @@ class Telegrambot
 		$online = $local[1];	//bool if file was not local
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
-		$postfields = ["chat_id" => $this->getChatId(),
-			"photo" => new CurlFile($filestring, '')];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		
+		if(file_exists($filestring)){
+			$postfields["photo"] = new CurlFile($filestring, '');
+		}
+		else{
+			$postfields["photo"] = $filestring;
+		}
 
 		$this->makeRequest("sendPhoto", $postfields, $headers);
 		
@@ -236,8 +369,10 @@ class Telegrambot
 	/**
 	 * Send a sticker to the chat
 	 * @param string $filestring	sticker that will up uploaded
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendSticker($filestring)
+	public function sendSticker($filestring, $isreply = false, $reply_markup = null)
 	{
 		$this->sendChatAction("typing");
 		
@@ -247,8 +382,14 @@ class Telegrambot
 		$online = $local[1];	//bool if file was not local
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
-		$postfields = ["chat_id" => $this->getChatId(),
-			"sticker" => new CurlFile($filestring, '')];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		
+		if(file_exists($filestring)){
+			$postfields["sticker"] = new CurlFile($filestring, '');
+		}
+		else{
+			$postfields["sticker"] = $filestring;
+		}
 
 		$this->makeRequest("sendSticker", $postfields, $headers);
 		
@@ -261,12 +402,14 @@ class Telegrambot
 	 * Send a location to the chat
 	 * @param float $lat	latitude
 	 * @param float $lon	longitude
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendLocation($lat, $lon)
+	public function sendLocation($lat, $lon, $isreply = false, $reply_markup = null)
 	{		
-		$postfields = ["chat_id" => $this->getChatId(),
-			"latitude" => $lat,
-			"longitude" => $lon];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		$postfields["latitude"] = $lat;
+		$postfields["longitude"] = $lon;
 
 		$this->makeRequest("sendLocation", $postfields);
 	}
@@ -274,8 +417,10 @@ class Telegrambot
 	/**
 	 * Send audio to the chat
 	 * @param string $filestring	audio that will up uploaded
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendAudio($filestring)
+	public function sendAudio($filestring, $isreply = false, $reply_markup = null)
 	{
 		$this->sendChatAction("upload_audio");
 		
@@ -285,8 +430,14 @@ class Telegrambot
 		$online = $local[1];	//bool if file was not local
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
-		$postfields = ["chat_id" => $this->getChatId(),
-			"audio" => new CurlFile($filestring, '')];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		
+		if(file_exists($filestring)){
+			$postfields["audio"] = new CurlFile($filestring, '');
+		}
+		else{
+			$postfields["audio"] = $filestring;
+		}
 
 		$this->makeRequest("sendAudio", $postfields, $headers);
 		
@@ -298,8 +449,10 @@ class Telegrambot
 	/**
 	 * Send a video to the chat
 	 * @param string $filestring	video that will up uploaded
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendVideo($filestring)
+	public function sendVideo($filestring, $isreply = false, $reply_markup = null)
 	{
 		$this->sendChatAction("upload_video");		
 
@@ -309,8 +462,14 @@ class Telegrambot
 		$online = $local[1];	//bool if file was not local
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
-		$postfields = ["chat_id" => $this->getChatId(),
-			"video" => new CurlFile($filestring, '')];
+		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		
+		if(file_exists($filestring)){
+			$postfields["video"] = new CurlFile($filestring, '');
+		}
+		else{
+			$postfields["video"] = $filestring;
+		}
 
 		$this->makeRequest("sendVideo", $postfields, $headers);
 		
@@ -322,6 +481,28 @@ class Telegrambot
 	/**************************************************
 	*				Helper functions
 	**************************************************/
+	
+	/**
+	 * checks if a file is not local and downloads that file
+	 * @param string $chatId	to which chatId should this message be send
+	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
+	 * @param array $reply_markup	Options for custom keyboards
+	 * @return array	Array[0] = new/old filepath, Array[1] = was file from somewhere online
+	 */
+	function createPostfields($chatId, $isreply = false, $reply_markup = null)
+	{
+		$postfields = ["chat_id" => $chatId];
+		
+		if($isreply){
+			$postfields["reply_to_message_id"] = $this->getMessageId();
+		}
+		
+		if($reply_markup){
+			$postfields["reply_markup"] = json_encode($reply_markup);
+		}
+		
+		return $postfields;
+	}
 	
 	/**
 	 * checks if a file is not local and downloads that file
