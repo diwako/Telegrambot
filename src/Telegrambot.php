@@ -200,7 +200,7 @@ class Telegrambot
 	public function getPhotoId()
 	{
 		//there are 2 more photo ids for a small and middle one, however using those ids always redirects to the large one
-		return $this->responseData['message']['photo'][2][file_id];
+		return $this->responseData['message']['photo'][0][file_id];
 	}
 	
 	/**
@@ -269,15 +269,40 @@ class Telegrambot
 	**************************************************/
 	
 	/**
+	 * Returns array of image ids
+	 * @param string $id	Given User ID. null = function will take sender id
+	 * @param int $limit	Limit to how many ids are returned
+	 * @param int $offset	offset from when to get the image ids
+	 * @return array	Params array as string
+	 */
+	public function getUserProfilePhotos($id = null, $limit = null, $offset = null)
+	{
+		if(!isset($id)) $id = $this->getSenderId();
+		
+		$postfields = ["user_id" => $id, "limit" => $limit, "offset" => $offset];
+		
+		$response = $this->makeRequest("getUserProfilePhotos", $postfields);
+		
+		$imgidarray = array();
+		foreach($response["result"]["photos"] as $key=>$photo){
+			$imgidarray[] = $photo[count($photo) - 1]["file_id"];
+		}
+		
+		return $imgidarray;
+	}
+	
+	/**
 	 * Send a message back to the chatID that wrote to the bot
 	 * @param string $message	Message that will be sent back to the chat
 	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
 	 * @param array $reply_markup	Options for custom keyboards
+	 * @param boolean $disablePreview	Disable link preview
 	 */
-	public function sendMessage($message, $isreply = false, $reply_markup = null)
+	public function sendMessage($message, $isreply = false, $reply_markup = null, $disablePreview = false)
 	{
 		$postfields = $this->createPostfields($this->getChatId(),$isreply, $reply_markup);
 		$postfields["text"] = $message;
+		$postfields["disable_web_page_preview"] = $disablePreview;
 		
 		$this->makeRequest("sendMessage", $postfields);
 	}
@@ -340,7 +365,7 @@ class Telegrambot
 	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
 	 * @param array $reply_markup	Options for custom keyboards
 	 */
-	public function sendPhoto($filestring, $isreply = false, $reply_markup = null)
+	public function sendPhoto($filestring, $isreply = false, $reply_markup = null, $caption = "")
 	{
 		$this->sendChatAction("upload_photo");
 		
@@ -351,6 +376,7 @@ class Telegrambot
 		
 		$headers = ["Content-Type:multipart/form-data"]; // cURL headers for file uploading
 		$postfields = $this->createPostfields($this->getChatId(), $isreply, $reply_markup);
+		$postfields["caption"] = $caption;
 		
 		if(file_exists($filestring)){
 			$postfields["photo"] = new CurlFile($filestring, '');
@@ -535,6 +561,7 @@ class Telegrambot
 	 * @param string $endpoint	Tells function which endpoint for telegram should be reached (Ex. sendMessage)
 	 * @param array $postfields	containing the post fields
 	 * @param array $headers	containing specific header information
+	 * @return array	response array, decoded from json
 	 */
 	function makeRequest($endpoint, $postfields, $headers = null)
 	{
@@ -558,6 +585,8 @@ class Telegrambot
 			// $this->sendMessage($response);
 		// }
 		curl_close($ch);
+		
+		return json_decode($response, true);
 	}
 	
 	/**
