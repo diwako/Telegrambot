@@ -32,6 +32,7 @@ This base is able to:
 	- send Videos
 	- send Stickers
 	- send Location data
+	- get User Profile Pictures
 	- get all Sender information
 
 ### License ###
