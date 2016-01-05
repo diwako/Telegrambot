@@ -225,7 +225,7 @@ class Telegrambot
 			return "/error";
 		}
 		
-		if($this->startsWith($text, "@")){
+		if($this->startsWith($text, "@" . $this->botusername)){
 			return "@" . $this->botusername;
 		}
 		
@@ -298,11 +298,12 @@ class Telegrambot
 	 * @param array $reply_markup	Options for custom keyboards
 	 * @param boolean $disablePreview	Disable link preview
 	 */
-	public function sendMessage($message, $isreply = false, $reply_markup = null, $disablePreview = false)
+	public function sendMessage($message, $isreply = false, $reply_markup = null, $disablePreview = false, $parse_mode = "Markdown")
 	{
 		$postfields = $this->createPostfields($this->getChatId(),$isreply, $reply_markup);
-		$postfields["text"] = $message;
+		$postfields["text"] = str_replace("_", " ", $message);
 		$postfields["disable_web_page_preview"] = $disablePreview;
+		$postfields["parse_mode"] = $parse_mode;
 		
 		$this->makeRequest("sendMessage", $postfields);
 	}
@@ -509,6 +510,15 @@ class Telegrambot
 	**************************************************/
 	
 	/**
+	 * Overwrites to where the message should be sent
+	 * @param string $chatId	to which chatId should this message be send
+	 */
+	function overwriteChatId($chatId = null)
+	{
+		if($chatId != null) $this->responseData["message"]["chat"]["id"] = $chatId;
+	}
+	
+	/**
 	 * checks if a file is not local and downloads that file
 	 * @param string $chatId	to which chatId should this message be send
 	 * @param boolean $isreply	Indicates if the message is a reply from the use sent message
@@ -571,6 +581,7 @@ class Telegrambot
 		$options = [CURLOPT_URL => $reply,
 			CURLOPT_POST => 1,
 			CURLOPT_POSTFIELDS => $postfields,
+			CURLOPT_TIMEOUT        	=> 10,
 			CURLOPT_RETURNTRANSFER => 1];
 		
 		if(isset($headers)){
@@ -580,9 +591,14 @@ class Telegrambot
 		
 		$response = curl_exec($ch);
 		
-		//debug - Get response from telegram
+		// debug - Get response from telegram
 		// if($endpoint != "sendMessage"){
 			// $this->sendMessage($response);
+		// }else{
+			// print "<pre>";
+			// print_r($response);
+			// print "</pre>";
+			// echo $postfields["text"];
 		// }
 		curl_close($ch);
 		
